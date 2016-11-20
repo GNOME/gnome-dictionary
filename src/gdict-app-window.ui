@@ -12,6 +12,10 @@
         <child>
           <object class="GtkSpinner" id="spinner">
             <property name="visible">True</property>
+            <property name="halign">GTK_ALIGN_CENTER</property>
+            <property name="valign">GTK_ALIGN_CENTER</property>
+            <property name="width-request">85</property>
+            <property name="height-request">85</property>
             <property name="can_focus">False</property>
           </object>
           <packing>
