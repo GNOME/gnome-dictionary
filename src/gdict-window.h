@@ -99,7 +99,7 @@ struct _GdictWindow
   gint default_height;
   gint current_width;
   gint current_height;
-  gint sidebar_width;
+  gdouble sidebar_width_percentage;
 
   gchar *sidebar_page;
 
