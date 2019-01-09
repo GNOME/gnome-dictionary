@@ -367,7 +367,7 @@ gdict_app_init (GdictApp *app)
   g_application_add_main_option_entries (G_APPLICATION (app), gdict_app_goptions);
 
   /* Set main application icon */
-  gtk_window_set_default_icon_name ("accessories-dictionary");
+  gtk_window_set_default_icon_name ("org.gnome.Dictionary");
 }
 
 GApplication *

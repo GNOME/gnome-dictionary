@@ -39,6 +39,7 @@ configure_file (input: 'org.gnome.Dictionary.service.in',
 install_data ('org.gnome.dictionary.gschema.xml',
               install_dir: gdict_schemadir)
 
+subdir('icons')
 
 # Dictionary sources
 sources = [

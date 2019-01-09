@@ -64,7 +64,7 @@ gdict_show_about_dialog (GtkWidget *parent)
   			 "authors", authors,
   			 "documenters", documenters,
   			 "translator-credits", translator_credits,
-  			 "logo-icon-name", "accessories-dictionary",
+  			 "logo-icon-name", "org.gnome.Dictionary",
   			 "license-type", GTK_LICENSE_GPL_2_0,
 			 "screen", gtk_widget_get_screen (parent),
   			 NULL);
