@@ -1,0 +1,42 @@
+{
+    "app-id" : "org.gnome.Dictionary",
+    "runtime" : "org.gnome.Platform",
+    "runtime-version" : "master",
+    "branch" : "master",
+    "sdk" : "org.gnome.Sdk",
+    "command" : "gnome-dictionary",
+    "finish-args" : [
+        "--share=ipc",
+        "--share=network",
+        "--socket=x11",
+        "--socket=wayland",
+        "--talk-name=ca.desrt.dconf",
+        "--talk-name=org.gtk.vfs.*",
+        "--talk-name=org.a11y.*",
+        "--env=DCONF_USER_CONFIG_DIR=.config/dconf"
+    ],
+    "cleanup" : [
+        "/include",
+        "/lib/pkgconfig",
+        "/share/pkgconfig",
+        "/share/aclocal",
+        "/man",
+        "/share/man",
+        "/share/gtk-doc",
+        "*.la",
+        "*.a"
+    ],
+    "modules" : [
+        {
+            "name" : "gnome-dictionary",
+            "buildsystem" : "meson",
+            "builddir" : true,
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://gitlab.gnome.org/GNOME/gnome-dictionary.git"
+                }
+            ]
+        }
+    ]
+}
