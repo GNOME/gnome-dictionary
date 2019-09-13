@@ -43,7 +43,6 @@ install_data ('org.gnome.dictionary.gschema.xml',
 # Dictionary sources
 sources = [
   'default.desktop',
-  'spanish.desktop',
   'thai.desktop',
 ]
 
