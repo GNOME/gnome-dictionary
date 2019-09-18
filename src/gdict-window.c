@@ -704,7 +704,7 @@ gdict_window_store_state (GdictWindow *window)
   g_key_file_set_integer (state_key, "WindowState", "Height", window->current_height);
   g_key_file_set_boolean (state_key, "WindowState", "IsMaximized", window->is_maximized);
   g_key_file_set_boolean (state_key, "WindowState", "SidebarVisible", window->sidebar_visible);
-  g_key_file_set_integer (state_key, "WindowState", "SidebarWidth", window->sidebar_width);
+  g_key_file_set_double (state_key, "WindowState", "SidebarWidthPercentage", window->sidebar_width_percentage);
 
   page_id = gdict_sidebar_current_page (GDICT_SIDEBAR (window->sidebar));
   if (page_id == NULL)
@@ -788,11 +788,11 @@ gdict_window_load_state (GdictWindow *window)
       window->sidebar_visible = FALSE;
     }
 
-  window->sidebar_width = g_key_file_get_integer (state_key, "WindowState", "SidebarWidth", &error);
+  window->sidebar_width_percentage = g_key_file_get_double (state_key, "WindowState", "SidebarWidthPercentage", &error);
   if (error != NULL)
     {
       g_clear_error (&error);
-      window->sidebar_width = -1;
+      window->sidebar_width_percentage = -1;
     }
 
   window->sidebar_page = g_key_file_get_string (state_key, "WindowState", "SidebarPage", &error);
@@ -1114,12 +1114,38 @@ gdict_window_state_event_cb (GtkWidget           *widget,
 			     gpointer             user_data)
 {
   GdictWindow *window = GDICT_WINDOW (widget);
-  
+
   if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED)
     window->is_maximized = TRUE;
   else
     window->is_maximized = FALSE;
-  
+
+  gtk_window_get_size (GTK_WINDOW (window),
+                       &window->current_width,
+                       &window->current_height);
+
+  /* Resize the panel as the window is minimised/maximised */
+  gtk_paned_set_position (GTK_PANED (window->main_pane),
+                          window->current_width * (1.0 - window->sidebar_width_percentage));
+
+  return FALSE;
+}
+
+static gboolean
+gdict_window_size_allocate_event_cb (GtkWidget           *widget,
+                                     GdkEventWindowState *event,
+                                     gpointer             user_data)
+{
+  GdictWindow *window = GDICT_WINDOW (widget);
+
+  gtk_window_get_size (GTK_WINDOW (window),
+                       &window->current_width,
+                       &window->current_height);
+
+  /* Resize the panel as the window is resized */
+  gtk_paned_set_position (GTK_PANED (window->main_pane),
+                          window->current_width * (1.0 - window->sidebar_width_percentage));
+
   return FALSE;
 }
 
@@ -1293,17 +1319,8 @@ static void
 gdict_window_size_allocate (GtkWidget     *widget,
 			    GtkAllocation *allocation)
 {
-  GdictWindow *window = GDICT_WINDOW (widget);
-
   if (GTK_WIDGET_CLASS (gdict_window_parent_class)->size_allocate != NULL)
     GTK_WIDGET_CLASS (gdict_window_parent_class)->size_allocate (widget, allocation);
-
-  if (!window->is_maximized)
-    {
-      gtk_window_get_size (GTK_WINDOW (widget),
-                           &window->current_width,
-                           &window->current_height);
-    }
 }
 
 static void
@@ -1312,14 +1329,19 @@ gdict_window_handle_notify_position_cb (GtkWidget  *widget,
 					gpointer    user_data)
 {
   GdictWindow *window = GDICT_WINDOW (user_data);
-  gint window_width, pos;
-  GtkAllocation allocation;
+  gint pos;
+  gdouble new_sidebar_width_percentage;
+  gdouble diff_sidebar_width_percentage;
 
-  pos = gtk_paned_get_position (GTK_PANED (widget));
-  gtk_widget_get_allocation (GTK_WIDGET (window), &allocation);
-  window_width = allocation.width;
+  pos = gtk_paned_get_position (GTK_PANED (window->main_pane));
 
-  window->sidebar_width = window_width - pos;
+  new_sidebar_width_percentage = 1.0 - pos / (gdouble) window->current_width;
+  diff_sidebar_width_percentage = fabs (window->sidebar_width_percentage - new_sidebar_width_percentage); 
+  if (pos < window->current_width && diff_sidebar_width_percentage > 1e-2)
+	  window->sidebar_width_percentage = new_sidebar_width_percentage; 
+
+  gtk_paned_set_position (GTK_PANED (window->main_pane),
+                          window->current_width * (1.0 - window->sidebar_width_percentage));
 }
 
 static void
@@ -1330,7 +1352,6 @@ gdict_window_constructed (GObject *gobject)
   GtkWidget *button;
   PangoFontDescription *font_desc;
   gchar *font_name;
-  GtkAllocation allocation;
   GMenu *menu;
   
   window = GDICT_WINDOW (gobject);
@@ -1339,6 +1360,10 @@ gdict_window_constructed (GObject *gobject)
 
   /* recover the state */
   gdict_window_load_state (window);
+
+  /* Set a default value for the sidebar width (percentage) */
+  if (window->sidebar_width_percentage <= 0)
+    window->sidebar_width_percentage = 0.3333;
 
   /* build menus */
   g_action_map_add_action_entries (G_ACTION_MAP (window),
@@ -1496,7 +1521,7 @@ gdict_window_constructed (GObject *gobject)
     }
 
   pango_font_description_free (font_desc);
-  
+
   gtk_window_set_title (GTK_WINDOW (window), _("Dictionary"));
   gtk_window_set_default_size (GTK_WINDOW (window),
                                window->default_width,
@@ -1504,8 +1529,6 @@ gdict_window_constructed (GObject *gobject)
   if (window->is_maximized)
     gtk_window_maximize (GTK_WINDOW (window));
 
-  gtk_widget_get_allocation (GTK_WIDGET (window), &allocation);
-  gtk_paned_set_position (GTK_PANED (window->main_pane), allocation.width - window->sidebar_width);
   if (window->sidebar_page != NULL)
     gdict_sidebar_view_page (GDICT_SIDEBAR (window->sidebar), window->sidebar_page);
   else
@@ -1516,6 +1539,9 @@ gdict_window_constructed (GObject *gobject)
 		    NULL);
   g_signal_connect (window, "window-state-event",
 		    G_CALLBACK (gdict_window_state_event_cb),
+		    NULL);
+  g_signal_connect (window, "size-allocate",
+		    G_CALLBACK (gdict_window_size_allocate_event_cb),
 		    NULL);
   g_signal_connect (window->main_pane, "notify::position",
 		    G_CALLBACK (gdict_window_handle_notify_position_cb),
@@ -1665,6 +1691,8 @@ gdict_window_init (GdictWindow *window)
 
   window->default_width = -1;
   window->default_height = -1;
+  window->current_width = -1;
+  window->current_height = -1;
   window->is_maximized = FALSE;
   window->sidebar_visible = FALSE;
   window->sidebar_page = NULL;
